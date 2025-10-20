@@ -18,7 +18,6 @@ userRouter.post('/sign-up', async (c) => {
         }).$extends(withAccelerate());
 
         const body = await c.req.json()
-        // console.log('body : ',body)
 
         const { username, email, password } = body
 
@@ -44,11 +43,54 @@ userRouter.post('/sign-up', async (c) => {
         })
 
     } catch (error) {
-        console.log('error : ' , error)
+        console.log('error : ', error)
         c.status(500)
         return c.json({ message: 'something went wrong at the sign-up', error: error })
 
     }
 })
 
-userRouter.post('/sign-in')
+
+userRouter.post('/sign-in', async (c) => {
+
+    try {
+        const prisma = new PrismaClient({
+            datasourceUrl: c.env.DATABASE_URL,
+        }).$extends(withAccelerate());
+
+        const body = await c.req.json()
+
+        const { username, password } = body
+
+        if (!username || !password) {
+            c.status(403)
+            return c.json({ message: 'all the fields are required' })
+        }
+
+        const user = await prisma.user.findUnique({
+            where: {
+                username: username
+            }
+        })
+
+        if (!user) {
+            c.status(403)
+            return c.json({
+                message: "invlaid user"
+            })
+        }
+
+        const token = await sign({ id: user.id, username: user.username }, c.env.JWT_SECRET)
+
+        c.status(200)
+        return c.json({
+            username: username,
+            jwt: token
+        })
+
+    } catch (error) {
+        console.log('error : ', error)
+        c.status(500)
+        return c.json({ message: 'something went wrong at the sign-up', error: error })
+    }
+})
