@@ -10,14 +10,45 @@ export const userRouter = new Hono<{
     }
 }>();
 
-userRouter.get('/sign-up' ,(c)=>{
+userRouter.post('/sign-up', async (c) => {
 
-    const prisma = new PrismaClient({
-      datasourceUrl: c.env.DATABASE_URL,
-    }).$extends(withAccelerate());
+    try {
+        const prisma = new PrismaClient({
+            datasourceUrl: c.env.DATABASE_URL,
+        }).$extends(withAccelerate());
 
-    return c.json({
-        message :"Hello there"
-    })
+        const body = await c.req.json()
+        // console.log('body : ',body)
 
+        const { username, email, password } = body
+
+        if (!username || !password) {
+            c.status(403)
+            return c.json({ message: 'all the fields are required' })
+        }
+
+        const user = await prisma.user.create({
+            data: {
+                username: username,
+                password: password,
+                email: email || ''
+            }
+        })
+
+        const token = await sign({ id: user.id, username: user.username }, c.env.JWT_SECRET)
+
+        c.status(200)
+        return c.json({
+            username: username,
+            jwt: token
+        })
+
+    } catch (error) {
+        console.log('error : ' , error)
+        c.status(500)
+        return c.json({ message: 'something went wrong at the sign-up', error: error })
+
+    }
 })
+
+userRouter.post('/sign-in')
